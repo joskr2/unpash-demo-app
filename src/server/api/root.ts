@@ -1,5 +1,5 @@
+import { pexelsRouter } from "~/server/api/routers/pexels";
 import { postRouter } from "~/server/api/routers/post";
-import { pexelsRouter } from "~/server/api/routers/pexels"; 
 import { createCallerFactory, createTRPCRouter } from "~/server/api/trpc";
 
 /**
@@ -8,8 +8,8 @@ import { createCallerFactory, createTRPCRouter } from "~/server/api/trpc";
  * All routers added in /api/routers should be manually added here.
  */
 export const appRouter = createTRPCRouter({
-  post: postRouter,
-  pexels: pexelsRouter,
+	post: postRouter,
+	pexels: pexelsRouter,
 });
 
 // export type definition of API
