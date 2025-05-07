@@ -1,25 +1,38 @@
+// src/components/custom/hero.tsx
 "use client";
 
 import { Camera, Search } from "lucide-react";
-import Image from "next/image";
+import Image from "next/image"; // Si usas imágenes estáticas aquí
 import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
 import type React from "react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 export default function Hero() {
-	const [searchQuery, setSearchQuery] = useState("");
+	const router = useRouter();
+	const searchParams = useSearchParams();
+	const [currentSearchInput, setCurrentSearchInput] = useState(
+		searchParams.get("query") || "",
+	);
 
-	const handleSearch = (e: React.FormEvent) => {
+	const handleFormSubmit = (e: React.FormEvent) => {
 		e.preventDefault();
-		console.log("Searching for:", searchQuery);
-		// In a real app, this would navigate to search results
+		const query = currentSearchInput.trim();
+		if (query) {
+			router.push(`/?query=${encodeURIComponent(query)}`);
+		} else {
+			router.push("/"); // O `/?filter=popular`
+		}
 	};
 
+	useEffect(() => {
+		setCurrentSearchInput(searchParams.get("query") || "");
+	}, [searchParams]);
+
 	return (
-		<section className="relative bg-white py-16 md:py-20">
+		<section className="relative bg-white py-16 text-black md:py-20">
 			<div className="container mx-auto px-4 md:px-6">
 				<div className="grid grid-cols-1 items-center gap-8 lg:grid-cols-5">
-					{/* Left side content - takes 3/5 of the grid on large screens */}
 					<div className="space-y-6 lg:col-span-3">
 						<h1 className="font-bold text-5xl text-black md:text-6xl">
 							Unsplash
@@ -33,15 +46,18 @@ export default function Hero() {
 							</p>
 						</div>
 
-						<form onSubmit={handleSearch} className="relative mt-8 max-w-full">
+						<form
+							onSubmit={handleFormSubmit}
+							className="relative mt-8 max-w-full"
+						>
 							<div className="relative flex items-center">
 								<Search className="absolute left-4 h-5 w-5 text-gray-500" />
 								<input
 									type="search"
 									placeholder="Search photos and illustrations"
-									className="w-full rounded-lg bg-gray-100 py-4 pr-4 pl-12 text-base focus:outline-none focus:ring-2 focus:ring-gray-200"
-									value={searchQuery}
-									onChange={(e) => setSearchQuery(e.target.value)}
+									className="w-full rounded-lg bg-gray-100 py-4 pr-4 pl-12 text-base text-black focus:outline-none focus:ring-2 focus:ring-gray-200"
+									value={currentSearchInput}
+									onChange={(e) => setCurrentSearchInput(e.target.value)}
 								/>
 								<button
 									type="button"
@@ -56,7 +72,7 @@ export default function Hero() {
 						<div className="flex items-center pt-2">
 							<span className="text-gray-500 text-sm">Supported by</span>
 							<Link href="#" className="ml-2">
-								<svg
+								<svg /* Tu SVG del logo de Unsplash */
 									width="120"
 									height="24"
 									viewBox="0 0 120 24"
@@ -74,17 +90,17 @@ export default function Hero() {
 						</div>
 					</div>
 
-					{/* Right side image collage - takes 2/5 of the grid on large screens */}
 					<div className="hidden lg:col-span-2 lg:block">
 						<div className="relative overflow-hidden rounded-lg">
 							<div className="grid grid-cols-2 gap-1">
 								<div className="relative aspect-square overflow-hidden">
 									<Image
-										src="/placeholder.svg?height=400&width=400"
+										src="/placeholder.svg?height=400&width=400" // Reemplaza con una imagen real o usa Pexels aquí también
 										alt="Featured image"
 										width={400}
 										height={400}
 										className="h-full w-full object-cover"
+										priority // Para LCP si es visible inmediatamente
 									/>
 								</div>
 								<div className="grid grid-rows-2 gap-1">

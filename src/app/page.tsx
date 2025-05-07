@@ -1,64 +1,99 @@
-// src/app/page.tsx
 import Link from "next/link";
-import { PexelsSearch } from "~/app/_components/PexelsSearch"; // <--- 1. IMPORTA EL COMPONENTE
-import { LatestPost } from "~/app/_components/post";
-import { HydrateClient, api } from "~/trpc/server";
+// src/app/page.tsx
+import Header from "~/components/custom/header";
+import Hero from "~/components/custom/hero";
+import ImageGridClient from "~/components/custom/image-grid-client";
+import Loading from "~/components/custom/loading";
+import type { PexelsCollectionResponse } from "~/server/api/routers/pexels"; // Importar el tipo
+import { api } from "~/trpc/server";
 
-export default async function Home() {
-	const hello = await api.post.hello({ text: "from tRPC" });
+export default async function Home({
+	searchParams,
+}: {
+	searchParams?: { query?: string; filter?: string };
+}) {
+	const userSearchQuery = searchParams?.query?.trim();
+	const filterType = searchParams?.filter; // "popular", "curated"
 
-	// `prefetch` es útil si `LatestPost` usa `useSuspenseQuery` o si quieres
-	// que los datos estén disponibles inmediatamente para la hidratación.
-	void api.post.getLatest.prefetch();
+	let initialPhotosData: PexelsCollectionResponse;
+	let dataSourceType: "search" | "curated" = "search"; // Para pasar a ImageGridClient
+	let activeQueryOrFilter = "popular"; // Para pasar a ImageGridClient
+
+	try {
+		if (userSearchQuery) {
+			activeQueryOrFilter = userSearchQuery;
+			dataSourceType = "search";
+			initialPhotosData = await api.pexels.searchPhotos({
+				query: userSearchQuery,
+				page: 1,
+				perPage: 15,
+			});
+		} else if (filterType === "curated") {
+			activeQueryOrFilter = "curated"; // Representa el tipo de filtro
+			dataSourceType = "curated";
+			initialPhotosData = await api.pexels.getCuratedPhotos({
+				// Llamada al nuevo endpoint
+				page: 1,
+				perPage: 15,
+			});
+		} else {
+			// Por defecto es "popular" (que trataremos como una búsqueda)
+			activeQueryOrFilter = "popular";
+			dataSourceType = "search";
+			initialPhotosData = await api.pexels.searchPhotos({
+				query: "popular", // Búsqueda del término "popular"
+				page: 1,
+				perPage: 15,
+			});
+		}
+	} catch (error) {
+		console.error("Error fetching initial photos in page.tsx:", error);
+		// Fallback a datos vacíos en caso de error
+		initialPhotosData = { photos: [], page: 1, per_page: 0, total_results: 0 };
+		// Podrías querer establecer un estado de error aquí y mostrarlo en la UI
+	}
 
 	return (
-		<HydrateClient>
-			{" "}
-			{/* Necesario para que LatestPost (Client Component) se hidrate con los datos pre-fetched */}
-			<main className="flex min-h-screen flex-col items-center bg-gradient-to-b from-[#2e026d] to-[#15162c] py-16 text-white">
-				{" "}
-				{/* Ajustado py y removido justify-center para permitir scroll si el contenido es largo */}
-				<div className="container flex flex-col items-center gap-12 px-4">
-					{" "}
-					{/* Removido justify-center */}
-					<h1 className="font-extrabold text-5xl tracking-tight sm:text-[5rem]">
-						Create <span className="text-[hsl(280,100%,70%)]">T3</span> App
-					</h1>
-					<div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:gap-8">
+		<main className="min-h-screen bg-white text-black">
+			<Header />
+			<Hero />
+
+			<div className="container mx-auto px-4 py-8 md:px-6">
+				<div className="mb-8 flex items-center justify-between">
+					<h2 className="font-bold text-2xl">Explore</h2>
+					<div className="flex gap-4">
 						<Link
-							className="flex max-w-xs flex-col gap-4 rounded-xl bg-white/10 p-4 hover:bg-white/20"
-							href="https://create.t3.gg/en/usage/first-steps"
-							target="_blank"
+							href="/?filter=popular"
+							className={`font-medium text-sm hover:text-gray-600 ${
+								(!filterType || filterType === "popular") && !userSearchQuery
+									? "text-black underline"
+									: "text-gray-700"
+							}`}
+							scroll={false}
 						>
-							<h3 className="font-bold text-2xl">First Steps →</h3>
-							<div className="text-lg">
-								Just the basics - Everything you need to know to set up your
-								database and authentication.
-							</div>
+							Popular
 						</Link>
+						{/* El botón "Latest" ahora apunta al filtro "curated" */}
 						<Link
-							className="flex max-w-xs flex-col gap-4 rounded-xl bg-white/10 p-4 hover:bg-white/20"
-							href="https://create.t3.gg/en/introduction"
-							target="_blank"
+							href="/?filter=curated"
+							className={`font-medium text-sm hover:text-gray-600 ${
+								filterType === "curated" && !userSearchQuery
+									? "text-black underline"
+									: "text-gray-700"
+							}`}
+							scroll={false}
 						>
-							<h3 className="font-bold text-2xl">Documentation →</h3>
-							<div className="text-lg">
-								Learn more about Create T3 App, the libraries it uses, and how
-								to deploy it.
-							</div>
+							Latest (Curated)
 						</Link>
 					</div>
-					<div className="flex flex-col items-center gap-2">
-						<p className="text-2xl text-white">
-							{hello ? hello.greeting : "Loading tRPC query..."}
-						</p>
-					</div>
-					<LatestPost />
-					{/* --- 2. AÑADE TU COMPONENTE PexelsSearch AQUÍ --- */}
-					<PexelsSearch />
-					{/* ------------------------------------------------- */}
 				</div>
-			</main>
-		</HydrateClient>
+
+				<ImageGridClient
+					initialPageData={initialPhotosData}
+					dataSourceType={dataSourceType}
+					queryOrFilterKey={activeQueryOrFilter} // Esta clave ayuda a react-query a diferenciar queries
+				/>
+			</div>
+		</main>
 	);
 }
