@@ -67,9 +67,7 @@ export default function Hero() {
 							</div>
 						</form>
 
-						<div className="flex items-center pt-2">
-
-						</div>
+						<div className="flex items-center pt-2" />
 					</div>
 
 					<div className="hidden lg:col-span-2 lg:block">
@@ -82,7 +80,7 @@ export default function Hero() {
 										width={400}
 										height={400}
 										className="h-full w-full object-cover"
-										priority 
+										priority
 									/>
 								</div>
 								<div className="grid grid-rows-2 gap-1">

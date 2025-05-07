@@ -7,7 +7,6 @@ export function PexelsSearch() {
 	const [searchTerm, setSearchTerm] = useState("animals");
 	const [submittedQuery, setSubmittedQuery] = useState("animals");
 
-
 	const { data, isLoading, error, refetch } = api.pexels.searchPhotos.useQuery(
 		{ query: submittedQuery, perPage: 6 },
 		{
