@@ -7,19 +7,17 @@ export function PexelsSearch() {
 	const [searchTerm, setSearchTerm] = useState("animals");
 	const [submittedQuery, setSubmittedQuery] = useState("animals");
 
-	// `useQuery` para obtener datos
+
 	const { data, isLoading, error, refetch } = api.pexels.searchPhotos.useQuery(
 		{ query: submittedQuery, perPage: 6 },
 		{
-			enabled: !!submittedQuery, // Solo se ejecuta si submittedQuery tiene valor
-			// Podrías añadir más opciones de react-query aquí
+			enabled: !!submittedQuery,
 		},
 	);
 
 	const handleSearchSubmit = (e: React.FormEvent<HTMLFormElement>) => {
 		e.preventDefault();
 		setSubmittedQuery(searchTerm);
-		// refetch(); // Opcional: react-query re-fetcheará automáticamente si `submittedQuery` cambia y `enabled` es true.
 	};
 
 	return (

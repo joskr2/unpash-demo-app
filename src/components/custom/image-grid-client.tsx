@@ -1,4 +1,3 @@
-// src/components/custom/image-grid-client.tsx
 "use client";
 
 import { useEffect, useRef } from "react";
@@ -31,7 +30,7 @@ const adaptPexelsPhotoToCardImage = (pexelsPhoto: TPexelsPhoto): CardImage => ({
 interface ImageGridClientProps {
   initialPageData: PexelsCollectionResponse;
   dataSourceType: "search" | "curated";
-  queryOrFilterKey: string; // Será la query de búsqueda o una clave como "curated"
+  queryOrFilterKey: string;
 }
 
 export default function ImageGridClient({
@@ -42,44 +41,121 @@ export default function ImageGridClient({
   const observer = useRef<IntersectionObserver | null>(null);
   const lastImageRef = useRef<HTMLDivElement | null>(null);
 
-  // Hook para fotos de búsqueda
-  const searchPhotosQuery = api.pexels.searchPhotos.useQuery(
+  const commonInfiniteQueryOptions = {
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
+  };
+
+  // @ts-ignore-next-line
+  const searchPhotosQueryResult = api.pexels.searchPhotos.useInfiniteQuery(
     {
       query: queryOrFilterKey,
       perPage: 15,
     },
     {
+      ...commonInfiniteQueryOptions,
+      getNextPageParam: (lastPage: PexelsCollectionResponse) => {
+        if (!lastPage.next_page || lastPage.photos.length === 0)
+          return undefined;
+        if (
+          lastPage.page * lastPage.per_page >= lastPage.total_results &&
+          lastPage.total_results > 0
+        )
+          return undefined;
+        return lastPage.page + 1;
+      },
+      initialData: () => {
+        if (
+          dataSourceType === "search" &&
+          initialPageData?.photos?.length > 0
+        ) {
+          return {
+            pages: [initialPageData],
+            pageParams: [initialPageData.page],
+          };
+        }
+        return undefined;
+      },
       enabled: dataSourceType === "search",
-      refetchOnMount: false,
-      refetchOnWindowFocus: false,
-      // No paginación aquí, solo una página
-      initialData: dataSourceType === "search" ? initialPageData : undefined,
     }
   );
 
-  // Hook para fotos curadas
-  const curatedPhotosQuery = api.pexels.getCuratedPhotos.useQuery(
+  // @ts-ignore-next-line
+  const curatedPhotosQueryResult = api.pexels.getCuratedPhotos.useInfiniteQuery(
     {
       perPage: 15,
     },
     {
+      ...commonInfiniteQueryOptions,
+      getNextPageParam: (lastPage: PexelsCollectionResponse) => {
+        if (!lastPage.next_page || lastPage.photos.length === 0)
+          return undefined;
+        return lastPage.page + 1;
+      },
+      initialData: () => {
+        if (
+          dataSourceType === "curated" &&
+          initialPageData?.photos?.length > 0
+        ) {
+          return {
+            pages: [initialPageData],
+            pageParams: [initialPageData.page],
+          };
+        }
+        return undefined;
+      },
       enabled: dataSourceType === "curated",
-      refetchOnMount: false,
-      refetchOnWindowFocus: false,
-      initialData: dataSourceType === "curated" ? initialPageData : undefined,
     }
   );
 
-  // Seleccionar los datos y funciones del hook activo
-  const activeQuery =
-    dataSourceType === "search" ? searchPhotosQuery : curatedPhotosQuery;
-  const { data, isLoading, error } = activeQuery;
+  const activeQueryResult =
+    dataSourceType === "search"
+      ? searchPhotosQueryResult
+      : curatedPhotosQueryResult;
 
-  const allPhotos = data?.photos ?? [];
-  const cardImages: CardImage[] = allPhotos.map(adaptPexelsPhotoToCardImage);
+  const {
+    data,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+    isLoading,
+    error,
+  } = activeQueryResult;
 
-  // Mostrar loading si el hook activo está cargando Y no hay imágenes aún
-  // (considerando que initialPageData pudo haber fallado en el servidor)
+  const allPhotosFromPages: TPexelsPhoto[] =
+    data?.pages.flatMap(
+      (pageData: PexelsCollectionResponse) => pageData.photos
+    ) ?? [];
+  const cardImages: CardImage[] = allPhotosFromPages.map(
+    adaptPexelsPhotoToCardImage
+  );
+
+  // biome-ignore lint/correctness/useExhaustiveDependencies: <explanation>
+  useEffect(() => {
+    if (isFetchingNextPage || !hasNextPage) return;
+
+    const currentObserver = observer.current;
+    if (currentObserver) {
+      currentObserver.disconnect();
+    }
+
+    observer.current = new IntersectionObserver((entries) => {
+      if (entries[0]?.isIntersecting && hasNextPage && !isFetchingNextPage) {
+        fetchNextPage();
+      }
+    });
+
+    if (lastImageRef.current) {
+      observer.current.observe(lastImageRef.current);
+    }
+
+    return () => {
+      if (currentObserver) {
+        currentObserver.disconnect();
+      }
+    };
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage, lastImageRef, data]);
+
   if (isLoading && cardImages.length === 0) {
     return (
       <div className="py-8 text-center">
@@ -96,7 +172,7 @@ export default function ImageGridClient({
     );
   }
 
-  if (cardImages.length === 0 && !isLoading) {
+  if (cardImages.length === 0 && !isLoading && !isFetchingNextPage) {
     return (
       <div className="py-8 text-center text-gray-500">
         No images found for "{queryOrFilterKey}".
@@ -112,15 +188,15 @@ export default function ImageGridClient({
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
         {[0, 1, 2].map((columnIndex) => (
           <div key={columnIndex} className="flex flex-col gap-4">
-            {getColumnImages(columnIndex).map((image, index, columnArray) => {
-              const isLastImageInItsColumn = index === columnArray.length - 1;
-              // Mejorar la lógica para el observer, podría ser el último elemento general
-              const isLastOverall =
+            {getColumnImages(columnIndex).map((image, index) => {
+              const isTheVeryLastImageInList =
                 cardImages.length > 0 &&
                 image.id === cardImages[cardImages.length - 1]?.id;
-
               return (
-                <div key={image.id} ref={isLastOverall ? lastImageRef : null}>
+                <div
+                  key={`${image.id}-${index}`}
+                  ref={isTheVeryLastImageInList ? lastImageRef : null}
+                >
                   <ImageCard image={image} />
                 </div>
               );
@@ -128,6 +204,16 @@ export default function ImageGridClient({
           </div>
         ))}
       </div>
+      {isFetchingNextPage && (
+        <div className="py-8 text-center">
+          <LoadingSpinner />
+        </div>
+      )}
+      {!hasNextPage && cardImages.length > 0 && !isFetchingNextPage && (
+        <p className="py-8 text-center text-gray-500">
+          You've reached the end!
+        </p>
+      )}
     </section>
   );
 }

@@ -1,9 +1,8 @@
-// src/components/custom/image-card.tsx
 "use client";
 
 import { Download, Heart, Plus } from "lucide-react";
 import { useState } from "react";
-import { Button } from "../ui/button"; // Asegura que la ruta a ui/button sea correcta
+import { Button } from "../ui/button";
 
 interface CardImage {
 	id: string;
@@ -21,15 +20,14 @@ interface ImageCardProps {
 export default function ImageCard({ image }: ImageCardProps) {
 	const [isHovered, setIsHovered] = useState(false);
 
-	// Función para manejar la descarga (ejemplo básico)
 	const handleDownload = async () => {
 		try {
-			const response = await fetch(image.url); // O image.src.original para la mejor calidad
+			const response = await fetch(image.url);
 			const blob = await response.blob();
 			const downloadUrl = window.URL.createObjectURL(blob);
 			const link = document.createElement("a");
 			link.href = downloadUrl;
-			link.setAttribute("download", `${image.photographer}-${image.id}.jpg`); // Nombre del archivo
+			link.setAttribute("download", `${image.photographer}-${image.id}.jpg`);
 			document.body.appendChild(link);
 			link.click();
 			link.parentNode?.removeChild(link);
@@ -49,12 +47,10 @@ export default function ImageCard({ image }: ImageCardProps) {
 			<img
 				src={image.url}
 				alt={image.alt}
-				// width y height aquí son para accesibilidad y aspect ratio si el CSS no lo maneja
 				width={image.width}
 				height={image.height}
 				className="h-auto w-full object-cover transition-transform duration-300 group-hover:scale-105"
-				// style={{ aspectRatio: `${image.width} / ${image.height}` }} // Si quieres forzar el aspect ratio original
-				loading="lazy" // Carga diferida para imágenes que no están en el viewport inicial
+				loading="lazy"
 			/>
 
 			{isHovered && (
